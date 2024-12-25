@@ -31,7 +31,7 @@ router.route("/").get(EmptyPage);
 router.route("/api/admin_login").post(AdminLogin);
 router.route("/api/login").post(LoginFunc);
 router.route("/api/register").post(User);
-router.route("/api/confirm-email").get(ConfirmEmail);
+router.route("/confirm-email").get(ConfirmEmail);
 router.route("/api/register/:userId").get(UserDetails);
 router.route("/api/register").get(auth, TokenDetails);
 router.route("/api/get_users").get(GetUsers);
