@@ -1,0 +1,10 @@
+200 OK: Request succeeded.
+201 Created: Resource created.
+204 No Content: Request succeeded, no content returned.
+400 Bad Request: Invalid request syntax.
+401 Unauthorized: Authentication required.
+403 Forbidden: Request understood, but not authorized.
+404 Not Found: Resource not found.
+500 Internal Server Error: Server error.
+502 Bad Gateway: Invalid response from upstream server.
+503 Service Unavailable: Server temporarily unable to handle request.
