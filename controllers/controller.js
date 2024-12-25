@@ -20,7 +20,7 @@ const sendConfirmationEmail = async (email, token) => {
     port: 465, // For TLS
   });
 
-  const confirmationLink = `http://192.168.250.21:3000/confirm-email?token=${token}`;
+  const confirmationLink = `https://sb-news-api-production.up.railway.app/confirm-email?token=${token}`;
   // console.log(confirmationLink);
   const mailOptions = {
     from: process.env.EMAIL,
