@@ -13,15 +13,23 @@ const commentSchema = new mongoose.Schema({
   commentReplies: [commentRepliesOnPost],
 });
 
-const createPost = new mongoose.Schema({
-  title: { type: String, required: true },
-  description: { type: String, required: true },
-  imageUrl: { type: String, required: true },
-  likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }],
-  comments: [commentSchema],
-  postedBy: { type: mongoose.Schema.Types.ObjectId, ref: "users" },
-  datePosted: { type: Date, default: Date.now },
-});
+const createPost = new mongoose.Schema(
+  {
+    title: { type: String, required: true },
+    description: { type: String, required: true },
+    imageUrl: { type: String, required: true },
+    likes: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }],
+    comments: [commentSchema],
+    category: { type: String, required: true },
+    postedBy: { type: mongoose.Schema.Types.ObjectId, ref: "users" },
+    authorImage: { type: String },
+    authorName: { type: String },
+    datePosted: { type: Date, default: Date.now },
+  },
+  {
+    timestamps: true,
+  }
+);
 
 const Post = mongoose.model("post", createPost);
 module.exports = Post;

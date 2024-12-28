@@ -1,4 +1,3 @@
-const mongodb = require("mongodb");
 const router = require("./routes/route");
 const express = require("express");
 const mongoose = require("mongoose");
@@ -6,8 +5,14 @@ const bodyParser = require("body-parser");
 const { MongoClient } = require("mongodb");
 const Stripe = require("stripe");
 const app = express();
+const cloudinary = require("cloudinary").v2;
 // const PORT = process.env.SECRET_KEY || 3000;
 
+cloudinary.config({
+  cloud_name: "doyux5mj8",
+  api_key: "869138434164782",
+  api_secret: "uOFk1ocUAqFDPRgAxJu3CRd4d4E",
+});
 require("dotenv").config();
 app.use(express.json());
 app.use(bodyParser.json());

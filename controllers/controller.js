@@ -3,10 +3,10 @@ const jwt = require("jsonwebtoken");
 const Post = require("../models/Post");
 const Users = require("../models/User");
 const Admin = require("../models/Admin");
-const Like = require("../models/LikeSchema");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const TempUsers = require("../models/TempUser");
+const cloudinary = require("cloudinary");
 
 const sendConfirmationEmail = async (email, token) => {
   const transporter = nodemailer.createTransport({
@@ -21,14 +21,13 @@ const sendConfirmationEmail = async (email, token) => {
   });
 
   const confirmationLink = `https://sb-news-api-production.up.railway.app/confirm-email?token=${token}`;
-  // console.log(confirmationLink);
+  console.log(confirmationLink);
   const mailOptions = {
     from: process.env.EMAIL,
     to: email,
     subject: "Email Confirmation",
     text: `Click the link to confirm your email: ${confirmationLink}`,
   };
-
   return await transporter.sendMail(mailOptions);
 };
 
@@ -54,18 +53,31 @@ const AdminLogin = async (req, res) => {
         expiresIn: "1h",
       }
     );
-    res.status(200).json({ message: "Admin logged in", token, admin });
+    return res.status(200).json({ message: "Admin logged in", token, admin });
   } catch (error) {
     console.log("Error while logging in", error.message);
   }
 };
 
 const User = async (req, res) => {
-  const { username, email, password, image, followers, following, articles } =
-    req.body;
-
+  const {
+    username,
+    email,
+    password,
+    image,
+    followers,
+    following,
+    articles,
+    preferences,
+    bio,
+  } = req.body;
   try {
     const isExist = await Users.findOne({ email });
+    const uploadUrl = await cloudinary.uploader.upload(image, {
+      upload_preset: "my_preset",
+    });
+    // console.log(uploadUrl);
+    // return;
     if (isExist) {
       return res.status(200).json({ error: "User already exists!" });
     }
@@ -73,24 +85,37 @@ const User = async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
     const hashedPassword = await bcryptjs.hash(password, 10);
     // console.log("token, ", token);
-
+    // const user = new Users({
+    //   username,
+    //   email,
+    //   password: hashedPassword,
+    //   image: uploadUrl.secure_url,
+    //   followers: followers || [],
+    //   following: following || [],
+    //   token,
+    //   articles: articles || [],
+    //   preferences: preferences || [],
+    //   bio,
+    // });
+    // await user.save();
+    // return res.status(201).json({ message: "User created Successfully!" });
     // Store the user in a temporary collection with the token
     const tempUser = new TempUsers({
       username,
       email,
       password: hashedPassword,
-      image: image || "",
+      image: uploadUrl.secure_url,
       followers: followers || [],
       following: following || [],
       token,
       articles: articles || [],
+      preferences: preferences || [],
+      bio,
     });
 
     await tempUser.save();
-
     // Send confirmation email
     await sendConfirmationEmail(email, token);
-
     return res
       .status(201)
       .json({ message: "Confirmation email sent. Please verify your email." });
@@ -118,6 +143,9 @@ const ConfirmEmail = async (req, res) => {
       followers: tempUser.followers,
       following: tempUser.following,
       articles: tempUser.articles,
+      token: tempUser.token,
+      preferences: tempUser.preferences,
+      bio: tempUser.bio,
     });
 
     await user.save();
@@ -184,8 +212,6 @@ const GetUsers = async (req, res) => {
 };
 
 const LoginFunc = async (req, res) => {
-  // console.log(req.body);
-  // return;
   try {
     const { email, password } = req.body;
     if (!email || !password) {
@@ -193,7 +219,7 @@ const LoginFunc = async (req, res) => {
     }
     const user = await Users.findOne({ email });
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ error: "User not found!" });
     }
     // console.log("Plain password:", password);
     // console.log("Hashed password:", user.password);
@@ -214,7 +240,7 @@ const LoginFunc = async (req, res) => {
         expiresIn: "1d",
       }
     );
-    res
+    return res
       .status(200)
       .json({ message: "User logged in successfully!", token, user });
   } catch (error) {
@@ -224,20 +250,37 @@ const LoginFunc = async (req, res) => {
 };
 
 const CreatePost = async (req, res) => {
+  // console.log("req.user", req.user + title, description, imageUrl, category);
   try {
-    const { title, description, imageUrl } = req.body;
-    // console.log("req.user", req.user);
+    const { title, description, imageUrl, category, authorImage, authorName } =
+      req.body;
+    console.log(req.body);
+    // return;
+    const uploadUrl = await cloudinary.uploader.upload(imageUrl, {
+      upload_preset: "my_preset",
+    });
+    console.log(uploadUrl);
     const post = new Post({
       title,
       description,
-      imageUrl,
+      imageUrl: uploadUrl.secure_url,
       postedBy: req.user,
+      category,
+      authorImage,
+      authorName,
     });
 
-    await post.save();
-    return res
-      .status(201)
-      .json({ message: "Post created successfully", user: req.user });
+    const savedPost = await post.save();
+    const updatedUser = await Users.findByIdAndUpdate(
+      req.user,
+      { $push: { articles: savedPost._id } },
+      { new: true }
+    );
+    return res.status(201).json({
+      message: "Post created successfully",
+      post: savedPost,
+      user: updatedUser,
+    });
   } catch (error) {
     console.log("Error while posting post ", error.message);
   }
@@ -272,6 +315,55 @@ const LikePost = async (req, res) => {
     }
   } catch (error) {
     console.log("Error while liking post ", error.message);
+  }
+};
+
+const FollowUnFollow = async (req, res) => {
+  const userId = req.authUser.id;
+  const followId = req.params.userId;
+  console.log("userId", userId, "followId", followId);
+  // return;
+  try {
+    const user = await Users.findById(userId);
+    const followUser = await Users.findById(followId);
+    if (!user || !followUser) {
+      return res.status(404).json({ error: "User not found" });
+    }
+    if (user.following.includes(followId)) {
+      const userUnFollow = await Users.findByIdAndUpdate(
+        userId,
+        { $pull: { following: followId } },
+        { new: true }
+      );
+      const followUserUnFollow = await Users.findByIdAndUpdate(
+        followId,
+        { $pull: { followers: userId } },
+        { new: true }
+      );
+      return res.status(200).json({
+        message: "User UnFollowed successfully",
+        userUnFollow,
+        followUserUnFollow,
+      });
+    } else {
+      const userFollow = await Users.findByIdAndUpdate(
+        userId,
+        { $push: { following: followId } },
+        { new: true }
+      );
+      const followUserFollow = await Users.findByIdAndUpdate(
+        followId,
+        { $push: { followers: userId } },
+        { new: true }
+      );
+      return res.status(200).json({
+        message: "User Followed successfully",
+        userFollow,
+        followUserFollow,
+      });
+    }
+  } catch (error) {
+    console.log("Error while following/unfollowing user ", error.message);
   }
 };
 
@@ -328,8 +420,28 @@ const DeleteComment = async (req, res) => {
   }
 };
 
+const GetRecommendedNews = async (req, res) => {
+  const { userId } = req.query;
+  try {
+    const user = await Users.findById(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const recommendations = await Post.find({
+      category: { $in: Users.preferences },
+    }).sort({ date: -1 });
+
+    return res.status(200).json(recommendations);
+  } catch (error) {
+    console.error("Error fetching recommendations:", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 const DeletePost = async (req, res) => {
   const { postId } = req.params;
+
   try {
     const isPostExist = await Post.findByIdAndDelete(postId);
     if (!isPostExist) {
@@ -355,6 +467,45 @@ const UserDetails = async (req, res) => {
   }
 };
 
+const GetAllUser = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const user = await Users.findById(userId)
+      .populate("followers", "username email image") // Populate followers with their details
+      .populate("following", "username email image"); // Populate following with their details
+
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    return res.status(200).json({
+      followers: user.followers,
+      following: user.following,
+    });
+  } catch (error) {
+    console.error("Error fetching followers and following", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
+const GetUserArticles = async (req, res) => {
+  try {
+    const userId = req.params.userId;
+    const user = await Users.findById(userId).populate("articles"); // Populate followers with their details
+
+    if (!user) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    return res.status(200).json({
+      articles: user.articles,
+    });
+  } catch (error) {
+    console.error("Error fetching user articles", error);
+    return res.status(500).json({ error: "Internal server error" });
+  }
+};
+
 const TokenDetails = async (req, res) => {
   const userId = req.authUser;
   if (userId) {
@@ -375,9 +526,12 @@ const UpdatePost = async (req, res) => {
 };
 
 const GetPosts = async (req, res) => {
+  const { category } = req.query;
+  // console.log(category);
   try {
-    const getPosts = await Post.find();
-    return res.status(200).json(getPosts);
+    const filter = category ? { category } : {}; // No category fetches all
+    const articles = await Post.find(filter);
+    return res.status(200).json(articles);
   } catch (error) {
     console.log("Error while getting posts");
   }
@@ -455,6 +609,16 @@ const DeleteReplyComment = async (req, res) => {
   }
 };
 
+const GetLatestNews = async (req, res) => {
+  try {
+    const posts = await Post.find().sort({ createdAt: -1 }).limit(10);
+    return res.status(200).json(posts);
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ error: "Server error" });
+  }
+};
+
 module.exports = {
   AdminLogin,
   LoginFunc,
@@ -475,4 +639,9 @@ module.exports = {
   DeleteReplyComment,
   TokenDetails,
   ConfirmEmail,
+  FollowUnFollow,
+  GetRecommendedNews,
+  GetAllUser,
+  GetUserArticles,
+  GetLatestNews,
 };
