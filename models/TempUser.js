@@ -10,6 +10,10 @@ const tempUserSchema = new mongoose.Schema({
   articles: { type: Array, default: [] },
   token: { type: String, required: true },
   createdAt: { type: Date, default: Date.now, expires: 3600 }, // Auto-delete after 1 hour
+  bio: String,
+  preferences: [String],
+  role: { type: String, default: "user" },
+  fcmToken: String,
 });
 
 const TempUsers = mongoose.model("TempUsers", tempUserSchema);
