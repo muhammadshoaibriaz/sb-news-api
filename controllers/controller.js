@@ -153,6 +153,20 @@ const User = async (req, res) => {
     const hashedPassword = await bcryptjs.hash(password, 10);
     console.log("token, ", fcmToken);
     // return;
+    // const user = new Users({
+    //   username,
+    //   email,
+    //   password: hashedPassword,
+    //   image: uploadUrl.secure_url,
+    //   followers: followers || [],
+    //   following: following || [],
+    //   token,
+    //   articles: articles || [],
+    //   preferences: preferences || [],
+    //   bio,
+    //   fcmToken,
+    // });
+    // await user.save();
     const tempUser = new TempUsers({
       username,
       email,
