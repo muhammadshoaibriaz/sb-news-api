@@ -15,7 +15,19 @@ app.use(cors());
 const PORT = 3000;
 
 // setup for push notification
-const serviceAccount = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+const serviceAccount = {
+  projectId: process.env.GOOGLE_PROJECT_ID,
+  privateKeyId: process.env.GOOGLE_PRIVATE_KEY_ID,
+  privateKey: process.env.GOOGLE_PRIVATE_KEY,
+  clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
+  clientId: process.env.GOOGLE_CLIENT_ID,
+  authUri: process.env.GOOGLE_AUTH_URI,
+  tokenUri: process.env.GOOGLE_TOKEN_URI,
+  certUrl: process.env.GOOGLE_CERT_URL,
+  clientX509CertUrl: process.env.GOOGLE_CLIENT_X509_CERT_URL,
+  universeDomain: process.env.GOOGLE_UNIVERSE_DOMAIN,
+};
+
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
