@@ -19,7 +19,7 @@ const serviceAccount = {
   type: process.env.TYPE,
   projectId: process.env.GOOGLE_PROJECT_ID,
   privateKeyId: process.env.GOOGLE_PRIVATE_KEY_ID,
-  privateKey: process.env.GOOGLE_PRIVATE_KEY,
+  privateKey: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
   clientEmail: process.env.GOOGLE_CLIENT_EMAIL,
   clientId: process.env.GOOGLE_CLIENT_ID,
   authUri: process.env.GOOGLE_AUTH_URI,
