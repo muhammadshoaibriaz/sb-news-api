@@ -6,22 +6,29 @@ const { MongoClient } = require("mongodb");
 const Stripe = require("stripe");
 const app = express();
 const cloudinary = require("cloudinary").v2;
+const admin = require("firebase-admin");
+require("dotenv").config();
+app.use(express.json());
+app.use(bodyParser.json());
+const cors = require("cors");
+app.use(cors());
+const PORT = 3000;
+
+// setup for push notification
+const serviceAccount = process.env.GOOGLE_APPLICATION_CREDENTIALS;
+admin.initializeApp({
+  credential: admin.credential.cert(serviceAccount),
+});
 // const PORT = process.env.SECRET_KEY || 3000;
 
+// for generating image url
 cloudinary.config({
   cloud_name: "doyux5mj8",
   api_key: "869138434164782",
   api_secret: "uOFk1ocUAqFDPRgAxJu3CRd4d4E",
 });
-require("dotenv").config();
-app.use(express.json());
-app.use(bodyParser.json());
 
-const cors = require("cors");
-app.use(cors());
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
-
-const PORT = 3000;
 
 const URL =
   "mongodb+srv://ms0319255:hkPA6m6dTEsnw2vJ@trinity.imcsgrs.mongodb.net/?appName=Trinity";

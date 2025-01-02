@@ -11,6 +11,7 @@ const usersSchema = new mongoose.Schema(
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }],
     articles: [{ type: mongoose.Schema.Types.ObjectId, ref: "post" }],
+    fcmToken: { type: String },
   },
   { timestamps: true }
 );

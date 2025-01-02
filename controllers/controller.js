@@ -1,12 +1,13 @@
-const bcryptjs = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const crypto = require("crypto");
+const bcryptjs = require("bcryptjs");
+const cloudinary = require("cloudinary");
 const Post = require("../models/Post");
 const Users = require("../models/User");
 const Admin = require("../models/Admin");
 const nodemailer = require("nodemailer");
-const crypto = require("crypto");
 const TempUsers = require("../models/TempUser");
-const cloudinary = require("cloudinary");
+const admin = require("firebase-admin");
 
 const sendConfirmationEmail = async (email, token) => {
   const transporter = nodemailer.createTransport({
@@ -29,6 +30,71 @@ const sendConfirmationEmail = async (email, token) => {
     text: `Click the link to confirm your email: ${confirmationLink}`,
   };
   return await transporter.sendMail(mailOptions);
+};
+const sendNotification = async (token, title, body) => {
+  const message = {
+    notification: {
+      title,
+      body,
+    },
+    token,
+  };
+
+  try {
+    const response = await admin.messaging().send(message);
+    console.log("Notification sent successfully:", response);
+  } catch (error) {
+    console.error("Error sending notification:", error);
+  }
+};
+
+const sendNotificationToFollowers = async () => {
+  const payload = {
+    notification: {
+      title: "New Post Alert!",
+      body: message,
+    },
+  };
+
+  admin
+    .messaging()
+    .sendToDevice(tokens, payload)
+    .then((response) => {
+      console.log("Successfully sent message:", response);
+    })
+    .catch((error) => {
+      console.log("Error sending message:", error);
+    });
+};
+
+const SendNotificationToFollowers = async (req, res) => {
+  const { title, body } = req.body;
+  try {
+    const followers = await Users.find({ followers: req.user._id });
+    console.log("followers", followers);
+    return;
+    const tokens = followers.map((user) => user.fcmToken);
+    console.log("tokens", tokens);
+    await sendNotificationToFollowers(tokens, title, body);
+    return res.status(200).json({ message: "Notification sent successfully" });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ message: "Error sending notification" });
+  }
+};
+
+const SendNotify = async (req, res) => {
+  const { token, title, body } = req.body;
+  if (!token || !title || !body) {
+    return res.status(400).send({ error: "Missing required fields" });
+  }
+
+  try {
+    await sendNotification(token, title, body);
+    return res.send({ success: true });
+  } catch (error) {
+    return res.status(500).send({ error: "Failed to send notification" });
+  }
 };
 
 const EmptyPage = async (req, res) => {
@@ -70,6 +136,7 @@ const User = async (req, res) => {
     articles,
     preferences,
     bio,
+    fcmToken,
   } = req.body;
   try {
     const isExist = await Users.findOne({ email });
@@ -84,22 +151,8 @@ const User = async (req, res) => {
 
     const token = crypto.randomBytes(32).toString("hex");
     const hashedPassword = await bcryptjs.hash(password, 10);
-    // console.log("token, ", token);
-    // const user = new Users({
-    //   username,
-    //   email,
-    //   password: hashedPassword,
-    //   image: uploadUrl.secure_url,
-    //   followers: followers || [],
-    //   following: following || [],
-    //   token,
-    //   articles: articles || [],
-    //   preferences: preferences || [],
-    //   bio,
-    // });
-    // await user.save();
-    // return res.status(201).json({ message: "User created Successfully!" });
-    // Store the user in a temporary collection with the token
+    console.log("token, ", fcmToken);
+    // return;
     const tempUser = new TempUsers({
       username,
       email,
@@ -111,6 +164,7 @@ const User = async (req, res) => {
       articles: articles || [],
       preferences: preferences || [],
       bio,
+      fcmToken: fcmToken,
     });
 
     await tempUser.save();
@@ -136,16 +190,17 @@ const ConfirmEmail = async (req, res) => {
 
     // Create the user in the main collection
     const user = new Users({
-      username: tempUser.username,
-      email: tempUser.email,
-      password: tempUser.password,
-      image: tempUser.image,
-      followers: tempUser.followers,
-      following: tempUser.following,
-      articles: tempUser.articles,
-      token: tempUser.token,
-      preferences: tempUser.preferences,
-      bio: tempUser.bio,
+      username: tempUser?.username,
+      email: tempUser?.email,
+      password: tempUser?.password,
+      image: tempUser?.image,
+      followers: tempUser?.followers,
+      following: tempUser?.following,
+      articles: tempUser?.articles,
+      token: tempUser?.token,
+      preferences: tempUser?.preferences,
+      bio: tempUser?.bio,
+      fcmToken: tempUser?.fcmToken,
     });
 
     await user.save();
@@ -252,14 +307,21 @@ const LoginFunc = async (req, res) => {
 const CreatePost = async (req, res) => {
   // console.log("req.user", req.user + title, description, imageUrl, category);
   try {
-    const { title, description, imageUrl, category, authorImage, authorName } =
-      req.body;
-    console.log(req.body);
+    const {
+      title,
+      description,
+      imageUrl,
+      category,
+      authorImage,
+      authorName,
+      userId,
+    } = req.body;
+    // console.log(req.body);
     // return;
     const uploadUrl = await cloudinary.uploader.upload(imageUrl, {
       upload_preset: "my_preset",
     });
-    console.log(uploadUrl);
+    // console.log(uploadUrl);
     const post = new Post({
       title,
       description,
@@ -271,6 +333,17 @@ const CreatePost = async (req, res) => {
     });
 
     const savedPost = await post.save();
+
+    const users = await Users.findById(userId);
+    const followerIds = users.followers;
+    const followers = await Users.find({ _id: { $in: followerIds } });
+    const fcmTokens = followers
+      .map((follower) => follower.fcmToken)
+      .filter(Boolean);
+
+    console.log("users", fcmTokens);
+    // return;
+
     const updatedUser = await Users.findByIdAndUpdate(
       req.user,
       { $push: { articles: savedPost._id } },
@@ -427,11 +500,9 @@ const GetRecommendedNews = async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
-
     const recommendations = await Post.find({
       category: { $in: Users.preferences },
     }).sort({ date: -1 });
-
     return res.status(200).json(recommendations);
   } catch (error) {
     console.error("Error fetching recommendations:", error);
@@ -447,6 +518,11 @@ const DeletePost = async (req, res) => {
     if (!isPostExist) {
       return res.status(422).json({ error: "Post does not exist" });
     }
+    await Users.updateMany(
+      { articles: postId }, // Find users with the postId in their articles
+      { $pull: { articles: postId } } // Remove the postId from articles array
+    );
+
     return res.status(200).json({ message: "Post deleted successfully" });
   } catch (error) {
     console.log("Error while deleting post!");
@@ -494,7 +570,7 @@ const GetUserArticles = async (req, res) => {
     const user = await Users.findById(userId).populate("articles"); // Populate followers with their details
 
     if (!user) {
-      return res.status(404).json({ error: "Post not found" });
+      return res.status(404).json({ error: "No user found!" });
     }
 
     return res.status(200).json({
@@ -566,7 +642,7 @@ const ReplyOnComment = async (req, res) => {
       repliedBy,
     });
     await post.save();
-    res.status(200).json(post);
+    return res.status(200).json(post);
   } catch (error) {
     console.error(error);
     res.status(500).json({ error: "Server error" });
@@ -644,4 +720,6 @@ module.exports = {
   GetAllUser,
   GetUserArticles,
   GetLatestNews,
+  SendNotify,
+  SendNotificationToFollowers,
 };

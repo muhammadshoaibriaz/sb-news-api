@@ -18,17 +18,16 @@ const {
   DeleteComment,
   ReplyOnComment,
   DeleteReplyComment,
+  SendNotify,
   TokenDetails,
   ConfirmEmail,
   FollowUnFollow,
   GetAllUser,
   GetUserArticles,
+  GetRecommendedNews,
+  SendNotificationToFollowers,
 } = require("../controllers/controller");
 const auth = require("../middlewares/auth");
-const {
-  authMiddleWare,
-  userAuthMiddleware,
-} = require("../middlewares/authMiddleware");
 
 const router = express.Router();
 router.route("/").get(EmptyPage);
@@ -47,7 +46,10 @@ router
   .patch(auth, FollowUnFollow);
 router.route("/api/register/:userId").delete(DeleteUser);
 router.route("/api/post").post(auth, CreatePost);
+router.route("/api/get-follower").get(auth, SendNotificationToFollowers);
 router.route("/api/breaking-news").get(GetLatestNews);
+router.route("/api/send-notification").post(SendNotify);
+router.route("/api/get-recommended-news").get(GetRecommendedNews);
 router.route("/api/post/:postId").delete(auth, DeletePost);
 router.route("/api/post/:postId").put(auth, UpdatePost);
 router.route("/api/post/:postId/like-unlike").patch(auth, LikePost);

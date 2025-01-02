@@ -1,1 +1,44 @@
-.vercel
+# Node.js dependencies
+node_modules/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Environment variables
+.env
+
+# Build output
+/dist
+/build
+/coverage
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# npm package lock
+package-lock.json
+
+# Yarn package lock
+yarn.lock
+
+# IntelliJ IDEA project files
+.idea/
+
+# Visual Studio Code workspace settings
+.vscode/
+
+# Mac OS system files
+*.swp
+
+# Firebase Admin credentials (service account keys)
+serviceAccountKey.json
+
+# Other IDE/editor files
+*.sublime-workspace
+*.sublime-project
+
+# Debugging
+*.orig

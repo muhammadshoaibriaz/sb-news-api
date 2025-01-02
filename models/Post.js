@@ -25,6 +25,7 @@ const createPost = new mongoose.Schema(
     authorImage: { type: String },
     authorName: { type: String },
     datePosted: { type: Date, default: Date.now },
+    userId: { type: String },
   },
   {
     timestamps: true,
