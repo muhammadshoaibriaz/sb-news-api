@@ -16,6 +16,7 @@ const PORT = 3000;
 
 // setup for push notification
 const serviceAccount = {
+  type: process.env.TYPE,
   projectId: process.env.GOOGLE_PROJECT_ID,
   privateKeyId: process.env.GOOGLE_PRIVATE_KEY_ID,
   privateKey: process.env.GOOGLE_PRIVATE_KEY,
@@ -31,7 +32,6 @@ const serviceAccount = {
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
-// const PORT = process.env.SECRET_KEY || 3000;
 
 // for generating image url
 cloudinary.config({
