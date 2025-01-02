@@ -164,7 +164,7 @@ const User = async (req, res) => {
       articles: articles || [],
       preferences: preferences || [],
       bio,
-      fcmToken: fcmToken,
+      fcmToken,
     });
 
     await tempUser.save();
@@ -198,9 +198,9 @@ const ConfirmEmail = async (req, res) => {
       following: tempUser?.following,
       articles: tempUser?.articles,
       token: tempUser?.token,
-      preferences: tempUser?.preferences,
       bio: tempUser?.bio,
       fcmToken: tempUser?.fcmToken,
+      preferences: tempUser?.preferences,
     });
 
     await user.save();

@@ -3,7 +3,7 @@ const usersSchema = new mongoose.Schema(
   {
     username: { type: String, required: true },
     image: { type: String },
-    bio: { type: String },
+    bio: String,
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
     preferences: [String],
@@ -11,7 +11,7 @@ const usersSchema = new mongoose.Schema(
     followers: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }],
     following: [{ type: mongoose.Schema.Types.ObjectId, ref: "users" }],
     articles: [{ type: mongoose.Schema.Types.ObjectId, ref: "post" }],
-    fcmToken: { type: String },
+    fcmToken: String,
   },
   { timestamps: true }
 );
