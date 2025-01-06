@@ -10,7 +10,7 @@ const auth = async (req, res, next) => {
         .json({ message: "Token not found unauthorized user" });
     }
     token = token.split(" ")[1];
-    console.log("Received token:", token);
+    // console.log("Received token:", token);
     let user = jwt.verify(token, process.env.SECRET_KEY);
     req.user = user.userId;
     // console.log("user", user);

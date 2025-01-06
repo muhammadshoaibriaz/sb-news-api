@@ -153,21 +153,7 @@ const User = async (req, res) => {
     const hashedPassword = await bcryptjs.hash(password, 10);
     console.log("token, ", fcmToken);
     // return;
-    // const user = new Users({
-    //   username,
-    //   email,
-    //   password: hashedPassword,
-    //   image: uploadUrl.secure_url,
-    //   followers: followers || [],
-    //   following: following || [],
-    //   token,
-    //   articles: articles || [],
-    //   preferences: preferences || [],
-    //   bio,
-    //   fcmToken,
-    // });
-    // await user.save();
-    const tempUser = new TempUsers({
+    const user = new Users({
       username,
       email,
       password: hashedPassword,
@@ -180,10 +166,24 @@ const User = async (req, res) => {
       bio,
       fcmToken,
     });
+    await user.save();
+    // const tempUser = new TempUsers({
+    //   username,
+    //   email,
+    //   password: hashedPassword,
+    //   image: uploadUrl.secure_url,
+    //   followers: followers || [],
+    //   following: following || [],
+    //   token,
+    //   articles: articles || [],
+    //   preferences: preferences || [],
+    //   bio,
+    //   fcmToken,
+    // });
 
-    await tempUser.save();
+    // await tempUser.save();
     // Send confirmation email
-    await sendConfirmationEmail(email, token);
+    // await sendConfirmationEmail(email, token);
     return res
       .status(201)
       .json({ message: "Confirmation email sent. Please verify your email." });
@@ -321,16 +321,9 @@ const LoginFunc = async (req, res) => {
 const CreatePost = async (req, res) => {
   // console.log("req.user", req.user + title, description, imageUrl, category);
   try {
-    const {
-      title,
-      description,
-      imageUrl,
-      category,
-      authorImage,
-      authorName,
-      userId,
-    } = req.body;
-    // console.log(req.body);
+    const { title, description, imageUrl, category, authorImage, authorName } =
+      req.body;
+    console.log(req.body);
     // return;
     const uploadUrl = await cloudinary.uploader.upload(imageUrl, {
       upload_preset: "my_preset",
@@ -345,31 +338,42 @@ const CreatePost = async (req, res) => {
       authorImage,
       authorName,
     });
-
-    const savedPost = await post.save();
-
-    const users = await Users.findById(userId);
-    const followerIds = users.followers;
+    const users = await Users.findById(req.user);
+    // console.log("users", users);
+    // return;
+    const followerIds = users?.followers;
     const followers = await Users.find({ _id: { $in: followerIds } });
     const fcmTokens = followers
       .map((follower) => follower.fcmToken)
       .filter(Boolean);
-
-    console.log("users", fcmTokens);
-    // return;
+    const savedPost = await post.save();
+    // console.log("fcmTokens", fcmTokens);
 
     const updatedUser = await Users.findByIdAndUpdate(
       req.user,
       { $push: { articles: savedPost._id } },
       { new: true }
     );
+
+    if (fcmTokens?.length > 0) {
+      const notification = {
+        title: "New Post",
+        body: `${users.username} created a new post`,
+        icon: users?.authorImage,
+      };
+      await admin.messaging().sendEachForMulticast({
+        tokens: fcmTokens,
+        notification: notification,
+      });
+    }
     return res.status(201).json({
       message: "Post created successfully",
       post: savedPost,
       user: updatedUser,
     });
   } catch (error) {
-    console.log("Error while posting post ", error.message);
+    console.log(error);
+    return res.status(500).json({ message: "Error creating post" });
   }
 };
 
@@ -378,6 +382,9 @@ const LikePost = async (req, res) => {
   const userId = req.authUser.id;
   try {
     const post = await Post.findById(postId);
+    const userDetails = await Users.findById(userId);
+    // console.log("postDetails", post);
+    // return;
     if (!post) {
       return res.status(404).json({ error: "Post not found" });
     }
@@ -396,6 +403,15 @@ const LikePost = async (req, res) => {
         { $push: { likes: userId } },
         { new: true }
       );
+      if (userDetails?.fcmToken) {
+        await admin.messaging().send({
+          notification: {
+            body: "Someone liked your post",
+            imageUrl: post?.imageUrl,
+          },
+          token: userDetails?.fcmToken,
+        });
+      }
       return res
         .status(200)
         .json({ message: "Post liked successfully", postLiked });
@@ -408,7 +424,7 @@ const LikePost = async (req, res) => {
 const FollowUnFollow = async (req, res) => {
   const userId = req.authUser.id;
   const followId = req.params.userId;
-  console.log("userId", userId, "followId", followId);
+  // console.log("userId", userId, "followId", followId);
   // return;
   try {
     const user = await Users.findById(userId);
@@ -443,6 +459,29 @@ const FollowUnFollow = async (req, res) => {
         { $push: { followers: userId } },
         { new: true }
       );
+      if (followUser.fcmToken) {
+        const notification = {
+          notification: {
+            title: "New Follower!",
+            body: `${user.username} has started following you.`,
+            image: user.image,
+          },
+          token: followUser.fcmToken,
+        };
+        // console.log("image url ", user?.image);
+        // console.log(notification);
+        // return;
+        try {
+          // Send push notification
+          await admin.messaging().send(notification);
+          console.log("Push notification sent to:", followUser.username);
+        } catch (notificationError) {
+          console.error(
+            "Error sending notification:",
+            notificationError.message
+          );
+        }
+      }
       return res.status(200).json({
         message: "User Followed successfully",
         userFollow,
