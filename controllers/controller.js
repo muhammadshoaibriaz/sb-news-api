@@ -153,21 +153,7 @@ const User = async (req, res) => {
     const hashedPassword = await bcryptjs.hash(password, 10);
     console.log("token, ", fcmToken);
     // return;
-    const user = new Users({
-      username,
-      email,
-      password: hashedPassword,
-      image: uploadUrl.secure_url,
-      followers: followers || [],
-      following: following || [],
-      token,
-      articles: articles || [],
-      preferences: preferences || [],
-      bio,
-      fcmToken,
-    });
-    await user.save();
-    // const tempUser = new TempUsers({
+    // const user = new Users({
     //   username,
     //   email,
     //   password: hashedPassword,
@@ -180,10 +166,24 @@ const User = async (req, res) => {
     //   bio,
     //   fcmToken,
     // });
+    // await user.save();
+    const tempUser = new TempUsers({
+      username,
+      email,
+      password: hashedPassword,
+      image: uploadUrl.secure_url,
+      followers: followers || [],
+      following: following || [],
+      token,
+      articles: articles || [],
+      preferences: preferences || [],
+      bio,
+      fcmToken,
+    });
 
-    // await tempUser.save();
+    await tempUser.save();
     // Send confirmation email
-    // await sendConfirmationEmail(email, token);
+    await sendConfirmationEmail(email, token);
     return res
       .status(201)
       .json({ message: "Confirmation email sent. Please verify your email." });
