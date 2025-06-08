@@ -43,8 +43,7 @@ cloudinary.config({
 
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
 
-const URL =
-  "mongodb+srv://ms0319255:hkPA6m6dTEsnw2vJ@trinity.imcsgrs.mongodb.net/?appName=Trinity";
+const URL = process.env.MONGO_DB_URL;
 const client = new MongoClient(URL);
 
 const connectToMongoose = async () => {
