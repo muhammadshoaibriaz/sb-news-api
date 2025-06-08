@@ -140,6 +140,7 @@ const User = async (req, res) => {
   } = req.body;
   try {
     const isExist = await Users.findOne({ email });
+    // const isExist = await TempUsers.findOne({ email });
     const uploadUrl = await cloudinary.uploader.upload(image, {
       upload_preset: "my_preset",
     });
@@ -153,21 +154,7 @@ const User = async (req, res) => {
     const hashedPassword = await bcryptjs.hash(password, 10);
     console.log("token, ", fcmToken);
     // return;
-    // const user = new Users({
-    //   username,
-    //   email,
-    //   password: hashedPassword,
-    //   image: uploadUrl.secure_url,
-    //   followers: followers || [],
-    //   following: following || [],
-    //   token,
-    //   articles: articles || [],
-    //   preferences: preferences || [],
-    //   bio,
-    //   fcmToken,
-    // });
-    // await user.save();
-    const tempUser = new TempUsers({
+    const user = new Users({
       username,
       email,
       password: hashedPassword,
@@ -180,10 +167,27 @@ const User = async (req, res) => {
       bio,
       fcmToken,
     });
+    await user.save();
 
-    await tempUser.save();
+    // very important for storing users as temporary if users did not confirm email
+
+    // const tempUser = new TempUsers({
+    //   username,
+    //   email,
+    //   password: hashedPassword,
+    //   image: uploadUrl.secure_url,
+    //   followers: followers || [],
+    //   following: following || [],
+    //   token,
+    //   articles: articles || [],
+    //   preferences: preferences || [],
+    //   bio,
+    //   fcmToken,
+    // });
+
+    // await tempUser.save();
     // Send confirmation email
-    await sendConfirmationEmail(email, token);
+    // await sendConfirmationEmail(email, token);
     return res
       .status(201)
       .json({ message: "Confirmation email sent. Please verify your email." });
@@ -383,11 +387,19 @@ const LikePost = async (req, res) => {
   try {
     const post = await Post.findById(postId);
     const userDetails = await Users.findById(userId);
-    // console.log("postDetails", post);
+    // console.log("userDetails", userDetails);
     // return;
     if (!post) {
       return res.status(404).json({ error: "Post not found" });
     }
+    const postOwner = await Users.findById(post?.postedBy);
+    // console.log("postOwner", postOwner);
+    // return;
+    if (!postOwner) {
+      // console.log("No user found with this ID:", post.postedBy);
+      return res.status(404).json({ error: "Post owner not found" });
+    }
+
     if (post.likes.includes(userId)) {
       const postUnlike = await Post.findByIdAndUpdate(
         postId,
@@ -403,13 +415,14 @@ const LikePost = async (req, res) => {
         { $push: { likes: userId } },
         { new: true }
       );
-      if (userDetails?.fcmToken) {
+      if (userDetails.fcmToken) {
         await admin.messaging().send({
           notification: {
-            body: "Someone liked your post",
-            imageUrl: post?.imageUrl,
+            title: "New Like on Your Post!",
+            body: `${userDetails?.username} liked your post`,
+            imageUrl: userDetails.image || "",
           },
-          token: userDetails?.fcmToken,
+          token: postOwner.fcmToken,
         });
       }
       return res
@@ -579,6 +592,26 @@ const DeletePost = async (req, res) => {
     return res.status(200).json({ message: "Post deleted successfully" });
   } catch (error) {
     console.log("Error while deleting post!");
+  }
+};
+// router.route("/api/post/:pId").post(SharePost);
+const SharePost = async (req, res) => {
+  const { pId, userId } = req.params;
+  // console.log(req.params);
+  try {
+    // const user = await Users.findById(userId);
+    // if (!user) {
+    //   return res.status(404).json({ error: "User not found" });
+    // }
+    const post = await Post.findById(pId);
+    if (!post) {
+      return res.status(404).json({ error: "Post not found" });
+    }
+
+    return res.status(200).json({ message: "Post shared successfully", post });
+  } catch (error) {
+    console.error("Error sharing post:", error);
+    return res.status(500).json({ error: "Internal server error" });
   }
 };
 
@@ -775,4 +808,5 @@ module.exports = {
   GetLatestNews,
   SendNotify,
   SendNotificationToFollowers,
+  SharePost,
 };

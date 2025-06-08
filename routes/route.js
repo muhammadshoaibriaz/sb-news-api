@@ -26,6 +26,7 @@ const {
   GetUserArticles,
   GetRecommendedNews,
   SendNotificationToFollowers,
+  SharePost,
 } = require("../controllers/controller");
 const auth = require("../middlewares/auth");
 
@@ -51,6 +52,7 @@ router.route("/api/breaking-news").get(GetLatestNews);
 router.route("/api/send-notification").post(SendNotify);
 router.route("/api/get-recommended-news").get(GetRecommendedNews);
 router.route("/api/post/:postId").delete(auth, DeletePost);
+router.route("/api/post/:pId").get(SharePost);
 router.route("/api/post/:postId").put(auth, UpdatePost);
 router.route("/api/post/:postId/like-unlike").patch(auth, LikePost);
 router.route("/api/post/:postId/comment").patch(auth, CommentOnPost);
